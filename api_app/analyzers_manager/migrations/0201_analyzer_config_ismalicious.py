@@ -22,7 +22,7 @@ plugin = {
     "threat intelligence: malicious flag, risk score, categories, and detection sources "
     "via `GET /check`. Requires an API key from the isMalicious dashboard.",
     "disabled": False,
-    "soft_time_limit": 30,
+    "soft_time_limit": 60,
     "routing_key": "default",
     "health_check_status": True,
     "type": "observable",
@@ -148,7 +148,7 @@ class Migration(migrations.Migration):
     atomic = False
     dependencies = [
         ("api_app", "0073_alter_updatecheckstatus_last_checked_at_and_more"),
-        ("analyzers_manager", "0196_data_model_phishing_lists"),
+        ("analyzers_manager", "0200_analyzer_config_presend_addressrisk"),
     ]
 
     operations = [migrations.RunPython(migrate, reverse_migrate)]

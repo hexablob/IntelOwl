@@ -1,10 +1,6 @@
 # This file is a part of IntelOwl https://github.com/intelowlproject/IntelOwl
 # See the file 'LICENSE' for copying permission.
-"""isMalicious observable analyzer for IntelOwl.
-
-Copy this file to:
-  api_app/analyzers_manager/observable_analyzers/ismalicious.py
-"""
+"""isMalicious observable analyzer: GET /check for IPs, domains and URLs."""
 
 from __future__ import annotations
 
@@ -16,6 +12,9 @@ from api_app.analyzers_manager.classes import ObservableAnalyzer
 from api_app.analyzers_manager.exceptions import AnalyzerRunException
 
 DEFAULT_API_URL = "https://api.ismalicious.com"
+# Identifies the analyzer to the isMalicious API, which attributes usage by
+# User-Agent prefix.
+USER_AGENT = "ismalicious-intelowl/1.0.1 (+https://ismalicious.com)"
 
 
 def check_indicator(
@@ -34,13 +33,17 @@ def check_indicator(
         response = requests.get(
             f"{api_url.rstrip('/')}/check",
             params={"query": query.strip(), "enrichment": "standard"},
-            headers={"X-API-KEY": api_key, "Accept": "application/json"},
+            headers={
+                "X-API-KEY": api_key,
+                "Accept": "application/json",
+                "User-Agent": USER_AGENT,
+            },
             timeout=timeout,
         )
         response.raise_for_status()
+        return response.json()
     except requests.RequestException as exc:
         raise AnalyzerRunException(exc) from exc
-    return response.json()
 
 
 class IsMalicious(ObservableAnalyzer):
