@@ -10,6 +10,8 @@ import logging
 
 import rest_email_auth.serializers
 from django.conf import settings
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
 from django.db import DatabaseError, transaction
 from rest_framework import serializers as rfs
 from rest_framework.authtoken.models import Token
@@ -24,7 +26,6 @@ from certego_saas.apps.user.serializers import UserSerializer
 from certego_saas.ext.upload import Slack
 from certego_saas.models import User
 from certego_saas.settings import certego_apps_settings
-from intel_owl.consts import validate_password_strength
 
 from .models import UserProfile
 
@@ -193,7 +194,11 @@ class RegistrationSerializer(rest_email_auth.serializers.RegistrationSerializer)
 
     def validate_password(self, password):
         """
-        Validate the user's password against a regex pattern.
+        Validate the user's password using Django's AUTH_PASSWORD_VALIDATORS.
+
+        Constructs a temporary User object from initial_data so that
+        UserAttributeSimilarityValidator can check for similarity to
+        username, email, first_name, and last_name.
 
         Args:
             password (str): The password to validate.
@@ -202,10 +207,20 @@ class RegistrationSerializer(rest_email_auth.serializers.RegistrationSerializer)
             str: The validated password.
 
         Raises:
-            ValidationError: If the password does not match the regex pattern.
+            ValidationError: If the password fails any validator.
         """
         super().validate_password(password)
-        validate_password_strength(password)
+        # Build a temporary user for context-aware validation
+        temp_user = User(
+            username=self.initial_data.get("username", ""),
+            email=self.initial_data.get("email", ""),
+            first_name=self.initial_data.get("first_name", ""),
+            last_name=self.initial_data.get("last_name", ""),
+        )
+        try:
+            validate_password(password, user=temp_user)
+        except ValidationError as e:
+            raise rfs.ValidationError(e.messages)
         return password
 
     def create(self, validated_data):

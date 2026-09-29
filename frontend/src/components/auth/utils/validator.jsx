@@ -21,8 +21,7 @@ export function PasswordValidator(password) {
   } else if (password.length < 12) {
     errors.password = "Must be 12 characters or more";
   } else if (!PASSWORD_REGEX.test(password)) {
-    errors.password =
-      "The password is entirely numeric or contains special characters";
+    errors.password = "The password cannot be entirely numeric";
   }
   return errors;
 }

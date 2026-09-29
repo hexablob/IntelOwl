@@ -197,7 +197,7 @@ def health_check(python_module_pk: int, plugin_config_pk: str):
     )
     if not config.disabled:
         try:
-            enabled = plugin.health_check(user=None)
+            enabled, _ = plugin.health_check(user=None)
         except NotImplementedError:
             logger.error(f"Unable to check healthcheck for {config.name}")
         else:
@@ -248,12 +248,17 @@ def job_pipeline(
     job_id: int,
 ):
     from api_app.models import Job
+    from api_app.websocket import JobConsumer
 
     job = Job.objects.get(pk=job_id)
     try:
         job.execute()
     except Exception as e:
         logger.exception(e)
+        job.status = Job.STATUSES.FAILED.value
+        job.errors = (job.errors or []) + [f"{e.__class__.__name__}: {e}"[:900]]
+        job.finished_analysis_time = now()
+        job.save(update_fields=["status", "errors", "finished_analysis_time"])
         for report in (
             list(job.analyzerreports.all())
             + list(job.connectorreports.all())
@@ -261,7 +266,10 @@ def job_pipeline(
             + list(job.visualizerreports.all())
         ):
             report.status = report.STATUSES.FAILED.value
-            report.save()
+            report.save(update_fields=["status"])
+        if root_investigation := job.get_root().investigation:
+            root_investigation.set_correct_status(save=True)
+        JobConsumer.serialize_and_send_job(job)
 
 
 @shared_task(base=FailureLoggedTask, name="run_plugin", soft_time_limit=500)

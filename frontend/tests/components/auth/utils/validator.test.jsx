@@ -42,14 +42,12 @@ describe("Password", () => {
   test("Invalid password", () => {
     const numericPassword = "123456123456";
     expect(PasswordValidator(numericPassword)).toEqual({
-      password:
-        "The password is entirely numeric or contains special characters",
+      password: "The password cannot be entirely numeric",
     });
+  });
+  test("Password with special characters is valid", () => {
     const password = "intelowlpassword$";
-    expect(PasswordValidator(password)).toEqual({
-      password:
-        "The password is entirely numeric or contains special characters",
-    });
+    expect(PasswordValidator(password)).toEqual({});
   });
 });
 

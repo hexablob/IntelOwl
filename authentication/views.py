@@ -10,6 +10,7 @@ from authlib.oauth2 import OAuth2Error
 from django.conf import settings
 from django.contrib.auth import get_user_model, login, logout, update_session_auth_hash
 from django.contrib.auth.hashers import check_password
+from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.shortcuts import redirect
@@ -24,7 +25,6 @@ from rest_framework.reverse import reverse
 from rest_framework.views import APIView
 
 from certego_saas.ext.throttling import POSTUserRateThrottle
-from intel_owl.consts import validate_password_strength
 from intel_owl.settings import AUTH_USER_MODEL
 
 from .oauth import oauth
@@ -171,7 +171,6 @@ class ChangePasswordView(APIView):
 
     @staticmethod
     def post(request: Request) -> Response:
-        # Get the old password and new password from the request data
         """
         Handles POST request for changing user password.
 
@@ -181,14 +180,23 @@ class ChangePasswordView(APIView):
         Returns:
             Response: The response object.
         """
+        # Get the old password and new password from the request data
         old_password = request.data.get("old_password")
         new_password = request.data.get("new_password")
 
         # Validate new password strength
+        if not new_password:
+            return Response(
+                {"error": "New password is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         try:
-            validate_password_strength(new_password)
+            validate_password(new_password, user=request.user)
         except ValidationError as e:
-            return Response({"error": e.message}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": e.messages if hasattr(e, "messages") else [str(e)]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         # Check if the old password matches the user's current password
         user = request.user
